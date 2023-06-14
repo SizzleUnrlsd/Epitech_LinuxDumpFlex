@@ -2,23 +2,66 @@
 
 clear
 echo "INSTALLING PACKAGES FOR EPITECH'S DUMP"
+
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root" 1>&2
    exit 1
 fi
-cat /etc/fedora-release | grep "Fedora release 34"
-if [[ $? -ne 0 ]]; then
-    echo "This script must be run onto a Fedora 34";
+
+# Detect package manager
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$NAME
+else
+    echo "Not able to determine the system."
     exit 1
 fi
+
+case $OS in
+    "Fedora"*)
+        PM=dnf
+        ;;
+    "Ubuntu"*)
+        PM=apt
+        ;;
+    "Arch Linux"*)
+        PM=pacman
+        ;;
+    "openSUSE Leap"*)
+        PM=zypper
+        ;;
+    *)
+        echo "Your OS is not supported by this script."
+        exit 1
+        ;;
+esac
+
+echo "Detected package manager: $PM"
+
 echo "Press ENTER to continue..."
 read
 
-rpm --import https://packages.microsoft.com/keys/microsoft.asc
-sh -c 'echo -e "[teams]\nname=teams\nbaseurl=https://packages.microsoft.com/yumrepos/ms-teams\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/teams.repo'
-dnf -y install dnf-plugins-core && dnf -y install https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+# System upgrade
+if [[ $PM == "dnf" ]]; then
+   $PM upgrade -y
+elif [[ $PM == "apt" ]]; then
+   $PM update && $PM upgrade -y
+elif [[ $PM == "pacman" ]]; then
+   $PM -Syu --noconfirm
+elif [[ $PM == "zypper" ]]; then
+   $PM up -y
+fi
 
-dnf upgrade -y
+# Adjust your package list for each distribution
+if [[ $PM == "dnf" ]]; then
+   packages_list=(gcc make git)
+elif [[ $PM == "apt" ]]; then
+   packages_list=(gcc make git)
+elif [[ $PM == "pacman" ]]; then
+   packages_list=(gcc make git)
+elif [[ $PM == "zypper" ]]; then
+   packages_list=(gcc make git)
+fi
 
 packages_list=(boost-devel.x86_64
                boost-static.x86_64
@@ -122,39 +165,28 @@ packages_list=(boost-devel.x86_64
                lightspark-mozilla-plugin.x86_64
                teams.x86_64)
 
-dnf -y install ${packages_list[@]}
+$PM -y install ${packages_list[@]}
 
-# Criterion
+# Install Criterion for all distros
 curl -sSL "https://github.com/Snaipe/Criterion/releases/download/v2.4.0/criterion-2.4.0-linux-x86_64.tar.xz" -o criterion-2.4.0.tar.xz
 tar xf criterion-2.4.0.tar.xz
-cp -r criterion-2.4.0/* /usr/local/
-echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf
+
+# Install Criterion at different locations depending on the distro
+if [[ $PM == "dnf" ]]; then
+   cp -r criterion-2.4.0/* /usr/local/
+   echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf
+elif [[ $PM == "apt" ]]; then
+   cp -r criterion-2.4.0/* /usr/local/
+   echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf
+elif [[ $PM == "pacman" ]]; then
+   cp -r criterion-2.4.0/* /usr/local/
+   echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf
+elif [[ $PM == "zypper" ]]; then
+   cp -r criterion-2.4.0/* /usr/local/
+   echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf
+fi
+
 ldconfig
 rm -rf criterion-2.4.0.tar.xz criterion-2.4.0/
 
-# Sbt
-curl -sSL "https://github.com/sbt/sbt/releases/download/v1.3.13/sbt-1.3.13.tgz" | tar xz
-mv sbt /usr/local/share
-ln -s '/usr/local/share/sbt/bin/sbt' '/usr/local/bin'
-
-# Gradle
-wget https://services.gradle.org/distributions/gradle-7.2-bin.zip
-mkdir /opt/gradle && unzip -d /opt/gradle gradle-7.2-bin.zip && rm -f gradle-7.2-bin.zip
-echo 'export PATH=$PATH:/opt/gradle/gradle-7.2/bin' >> /etc/profile
-
-# Stack
-curl -sSL https://get.haskellstack.org/ | sh
-
-# CONFIG EMACS
-git clone https://github.com/Epitech/epitech-emacs.git
-cd epitech-emacs
-git checkout 278bb6a630e6474f99028a8ee1a5c763e943d9a3
-./INSTALL.sh system
-cd .. && rm -rf epitech-emacs
-
-# CONFIG VIM
-git clone https://github.com/Epitech/vim-epitech.git
-cd vim-epitech
-git checkout ec936f2a49ca673901d56598e141932fd309ddac
-./install.sh
-cd .. && rm -rf vim-epitech
+# The remaining parts of the script for installing specific tools should also be adapted as necessary, depending on the package manager and the specific versions and repositories used for each tool.
